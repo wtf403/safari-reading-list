@@ -1,0 +1,228 @@
+name: Release Safari Reading List
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        default: 'v0.0.1'
+
+jobs:
+  build-extension:
+    name: Build Chrome Extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build Chrome
+        run: yarn build:chrome
+
+      - name: Upload Chrome extension artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: safari-reading-list-chrome
+          path: dist_chrome
+
+      - name: Zip Chrome extension
+        run: |
+          cd dist_chrome
+          zip -r ../safari-reading-list-chrome.zip *
+
+      - name: Upload Chrome extension zip
+        uses: actions/upload-artifact@v3
+        with:
+          name: safari-reading-list-chrome-zip
+          path: safari-reading-list-chrome.zip
+
+  build-host:
+    name: Build Native Messaging Host
+    runs-on: macos-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build native messaging host
+        run: |
+          cd host
+          go build -o safari_reading_list
+
+      - name: Create host package
+        run: |
+          mkdir -p host/package
+          cp host/safari_reading_list host/package/
+          cp host/com.wtf403.safari_reading_list.json host/package/
+          cp host/com.wtf403.safari_reading_list.firefox.json host/package/
+
+      - name: Upload host artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: safari-reading-list-host
+          path: host/package
+
+  create-homebrew-formula:
+    name: Create Homebrew Formula
+    needs: [build-extension, build-host]
+    runs-on: macos-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Download host artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: safari-reading-list-host
+          path: host-package
+
+      - name: Download Chrome extension zip
+        uses: actions/download-artifact@v3
+        with:
+          name: safari-reading-list-chrome-zip
+          path: .
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          fi
+          echo "Version: ${{ env.VERSION }}"
+
+      - name: Create Homebrew formula
+        run: |
+          mkdir -p formula
+          cat > formula/safari-reading-list.rb << EOF
+          class SafariReadingList < Formula
+            desc "Safari Reading List for Chrome and Firefox"
+            homepage "https://github.com/wtf403/safari-reading-list"
+            url "https://github.com/wtf403/safari-reading-list/releases/download/${{ env.VERSION }}/safari-reading-list-${{ env.VERSION }}.tar.gz"
+            sha256 "#{%x(shasum -a 256 safari-reading-list-chrome.zip).split.first}"
+            version "${{ env.VERSION }}"
+
+            depends_on "go" => :build
+
+            def install
+              bin.install "safari_reading_list"
+
+              # Install native messaging host manifests
+              if OS.mac?
+                # Chrome
+                mkdir_p "#{ENV["HOME"]}/Library/Application Support/Google/Chrome/NativeMessagingHosts"
+                cp "com.wtf403.safari_reading_list.json", "#{ENV["HOME"]}/Library/Application Support/Google/Chrome/NativeMessagingHosts/"
+
+                # Firefox
+                mkdir_p "#{ENV["HOME"]}/Library/Application Support/Mozilla/NativeMessagingHosts"
+                cp "com.wtf403.safari_reading_list.firefox.json", "#{ENV["HOME"]}/Library/Application Support/Mozilla/NativeMessagingHosts/com.wtf403.safari_reading_list.json"
+              end
+            end
+
+            def caveats
+              <<~EOS
+                Safari Reading List has been installed!
+
+                To complete the installation:
+                1. Install the Chrome extension from the Extension Store
+                2. Check that native messaging host works correctly
+
+                Enjoy accessing your Safari Reading List!
+              EOS
+            end
+          end
+          EOF
+
+      - name: Create release package
+        run: |
+          mkdir -p release-package
+          cp host-package/* release-package/
+          cp safari-reading-list-chrome.zip release-package/
+          cd release-package
+          tar -czf ../safari-reading-list-${{ env.VERSION }}.tar.gz *
+
+      - name: Upload formula
+        uses: actions/upload-artifact@v3
+        with:
+          name: homebrew-formula
+          path: formula/safari-reading-list.rb
+
+      - name: Upload release package
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-package
+          path: safari-reading-list-${{ env.VERSION }}.tar.gz
+
+  update-tap:
+    name: Update Homebrew Tap
+    needs: [create-homebrew-formula]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.event.inputs.version != ''
+    steps:
+      - name: Download formula
+        uses: actions/download-artifact@v3
+        with:
+          name: homebrew-formula
+          path: .
+
+      - name: Download release package
+        uses: actions/download-artifact@v3
+        with:
+          name: release-package
+          path: .
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+          fi
+
+      - name: Upload to release
+        if: github.event_name == 'release'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./safari-reading-list-${{ env.VERSION }}.tar.gz
+          asset_name: safari-reading-list-${{ env.VERSION }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Check out homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: wtf403/homebrew-tap
+          path: homebrew-tap
+          token: ${{ secrets.TAP_TOKEN }}
+
+      - name: Update homebrew tap
+        run: |
+          mkdir -p homebrew-tap/Formula
+          cp safari-reading-list.rb homebrew-tap/Formula/
+          cd homebrew-tap
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Formula/safari-reading-list.rb
+          git commit -m "Update safari-reading-list to ${{ env.VERSION }}"
+          git push

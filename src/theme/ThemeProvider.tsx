@@ -22,7 +22,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       (theme === "system" &&
         window.matchMedia("(prefers-color-scheme: dark)").matches);
 
-    document.documentElement.classList.toggle("dark", isDark);
+    document.documentElement.classList.remove("light", "dark");
+
+    if (theme !== "system") {
+      document.documentElement.classList.add(theme);
+    } else if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.add("light");
+    }
+
+    // Listen for system theme changes when in system mode
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+      if (theme === "system") {
+        document.documentElement.classList.remove("light", "dark");
+        document.documentElement.classList.add(e.matches ? "dark" : "light");
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleSystemThemeChange);
+    };
   }, [theme]);
 
   return (

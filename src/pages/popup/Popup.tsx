@@ -1,79 +1,91 @@
-import { useState, useEffect } from "react";
-
-const themes = ["light", "dark", "auto"] as const;
-type Theme = (typeof themes)[number];
-
-const themeIcons: Record<Theme, string> = {
-  light: "light-icon.png",
-  dark: "dark-icon.png",
-  auto: "auto-icon.png",
-};
+import { useContext, useState, useEffect } from "react";
+import { ThemeContext } from "../../theme/ThemeContext";
+import { ThemeToggle } from "../../theme/ThemeToggle";
+import Browser from "webextension-polyfill";
+import "./Popup.css";
 
 export default function Popup(): JSX.Element {
-  const [theme, setTheme] = useState<Theme>("light");
+  const { theme } = useContext(ThemeContext);
+  const [sortOrder, setSortOrder] = useState<"dateAdded" | "dateLastViewed">(
+    "dateAdded"
+  );
+  const [layout, setLayout] = useState<"grid" | "list">("grid");
 
+  // Load saved preferences
   useEffect(() => {
-    const savedTheme = (localStorage.getItem("theme") as Theme) || "light";
-    setTheme(savedTheme);
-    applyTheme(savedTheme);
+    Browser.storage.local.get(["sortOrder", "layout"]).then((result) => {
+      if (result.sortOrder)
+        setSortOrder(result.sortOrder as "dateAdded" | "dateLastViewed");
+      if (result.layout) setLayout(result.layout as "grid" | "list");
+    });
   }, []);
 
-  const applyTheme = (currentTheme: Theme) => {
-    const root = document.documentElement;
-
-    if (currentTheme === "auto") {
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-      root.classList.toggle("dark", prefersDark);
-      window
-        .matchMedia("(prefers-color-scheme: dark)")
-        .addEventListener("change", () => {
-          setTheme("auto");
-          applyTheme("auto");
-        });
-    } else {
-      root.classList.toggle("dark", currentTheme === "dark");
-    }
-  };
-
-  const switchTheme = () => {
-    const currentIndex = themes.indexOf(theme);
-    const nextIndex = (currentIndex + 1) % themes.length;
-    const nextTheme = themes[nextIndex];
-    setTheme(nextTheme);
-    localStorage.setItem("theme", nextTheme);
-    applyTheme(nextTheme);
-  };
+  // Save preferences when changed
+  useEffect(() => {
+    Browser.storage.local.set({ sortOrder, layout });
+  }, [sortOrder, layout]);
 
   return (
-    <div className="absolute top-0 left-0 right-0 bottom-0 text-center h-full p-3 bg-gray-800">
-      <header className="flex flex-col items-center justify-center text-white">
+    <div className="popup-container">
+      <header className="popup-header">
         <h1>Safari Reading List</h1>
+        <a
+          href="https://github.com/wtf403/safari-reading-list"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="github-link"
+        >
+          <img
+            width={8}
+            height={8}
+            src="https://github.com/fluidicon.png"
+            alt="GitHub"
+          />
+          <span>GitHub</span>
+        </a>
         <p>v0.0.1</p>
-        <div>
-          <a
-            href="https://github.com/wtf403/safari-reading-list"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img src="github-icon.png" alt="GitHub" />
-          </a>
-          <button onClick={switchTheme}>
-            <img src={themeIcons[theme]} alt={`${theme} theme`} />
-          </button>
-        </div>
-        <div className="flex flex-row gap-2">
-          <a
-            className="text-blue-400"
-            href="src/pages/options/index.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Options
-          </a>
-        </div>
       </header>
+
+      <div className="popup-content">
+        <section className="control-section">
+          <h2>Display Settings</h2>
+
+          <div className="control-group">
+            <label>
+              <span>Sort by</span>
+              <select
+                value={sortOrder}
+                onChange={(e) =>
+                  setSortOrder(e.target.value as "dateAdded" | "dateLastViewed")
+                }
+              >
+                <option value="dateAdded">Date Added</option>
+                <option value="dateLastViewed">Last Visited</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="control-group">
+            <label>
+              <span>Layout</span>
+              <select
+                value={layout}
+                onChange={(e) => setLayout(e.target.value as "grid" | "list")}
+              >
+                <option value="grid">Grid View</option>
+                <option value="list">List View</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section className="control-section">
+          <h2>Theme</h2>
+          <div className="theme-control">
+            <ThemeToggle />
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

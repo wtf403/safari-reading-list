@@ -1,0 +1,108 @@
+/* Theme Toggle Container */
+.theme-toggle-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Theme Switch */
+.theme-switch {
+  position: relative;
+  display: flex;
+  background-color: var(--bg-secondary);
+  border-radius: 30px;
+  padding: 3px;
+  width: 120px;
+  height: 36px;
+  box-shadow: inset 0 2px 5px var(--shadow-color);
+}
+
+/* Theme Option Buttons */
+.theme-option {
+  flex: 1;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+  border-radius: 30px;
+  transition: color 0.3s ease;
+  color: var(--text-secondary);
+}
+
+.theme-option:hover {
+  color: var(--text-primary);
+}
+
+.theme-option.active {
+  color: var(--bg-primary);
+}
+
+/* Slider that moves to indicate active theme */
+.theme-slider {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(33.33% - 2px);
+  height: 30px;
+  background-color: var(--accent-color);
+  border-radius: 30px;
+  transition: left 0.3s ease;
+  z-index: 1;
+}
+
+/* Common Icon Styles */
+.icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* System Theme Icon */
+.system-icon path:first-child {
+  stroke: currentColor;
+}
+
+.system-icon path:last-child {
+  fill: currentColor;
+}
+
+/* Light Theme Icon */
+.light-icon path:first-child {
+  fill: currentColor;
+}
+
+/* Dark Theme Icon */
+.dark-icon path {
+  fill: currentColor;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .theme-switch {
+    width: 100px;
+    height: 32px;
+  }
+
+  .theme-option {
+    height: 26px;
+  }
+
+  .theme-slider {
+    top: 3px;
+    height: 26px;
+  }
+
+  .icon {
+    width: 16px;
+    height: 16px;
+  }
+}

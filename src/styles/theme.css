@@ -1,15 +1,32 @@
 :root {
   --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
   --text-primary: #000000;
+  --text-secondary: #555555;
+  --accent-color: #3498db;
   --card-bg: #ffffff;
   --card-border: #eaeaea;
+  --button-bg: #f0f0f0;
+  --button-hover: #e0e0e0;
+  --shadow-color: rgba(0, 0, 0, 0.1);
 }
 
 :root.dark {
   --bg-primary: #1a1a1a;
+  --bg-secondary: #2a2a2a;
   --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --accent-color: #61dafb;
   --card-bg: #2d2d2d;
   --card-border: #404040;
+  --button-bg: #3a3a3a;
+  --button-hover: #4a4a4a;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Apply transition for smooth theme switching */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 body {
@@ -20,4 +37,35 @@ body {
 .reading-list-item {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
-} 
+  box-shadow: 0 2px 5px var(--shadow-color);
+}
+
+button {
+  background-color: var(--button-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+}
+
+button:hover {
+  background-color: var(--button-hover);
+}
+
+a {
+  color: var(--accent-color);
+}
+
+/* System theme detection for media query */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2a2a2a;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --accent-color: #61dafb;
+    --card-bg: #2d2d2d;
+    --card-border: #404040;
+    --button-bg: #3a3a3a;
+    --button-hover: #4a4a4a;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+  }
+}
