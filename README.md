@@ -7,8 +7,3 @@
 ## Preview
 
 ![Screenshot](./screenshot.png)
-
-## Features
-
-- Arrow and hjkl navigation
-- Switch auto/dark/light color themes

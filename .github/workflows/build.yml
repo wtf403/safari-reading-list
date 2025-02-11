@@ -1,18 +1,14 @@
-name: Release Safari Reading List
+name: build.yaml
 
 on:
-  release:
-    types: [created]
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., v1.0.0)'
-        required: true
-        default: 'v0.0.1'
+  push:
+    branches:
+      - main
 
 jobs:
-  build-extension:
-    name: Build Chrome Extension
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -33,7 +29,86 @@ jobs:
         run: yarn build:chrome
 
       - name: Upload Chrome extension artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
+        with:
+          name: vite-web-extension-chrome
+          path: dist_chrome
+
+  build-firefox-extension:
+    name: Build Firefox Extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build Firefox
+        run: yarn build:firefox
+
+      - name: Upload Firefox artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: safari-reading-list-firefox
+          path: dist_firefox
+
+      - name: Upload Firefox artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: safari-reading-list-firefox
+          path: dist_firefox
+
+
+      - name: Zip Firefox extension
+        run: |
+          cd dist_firefox
+          zip -r ../safari-reading-list-firefox.zip *
+
+      - name: Upload Firefox extension zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: safari-reading-list-firefox-zip
+          path: safari-reading-list-firefox.zip
+
+
+  build-chrome-extension:
+    name: Build Chrome Extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build Chrome
+        run: yarn build:chrome
+
+      - name: Upload Chrome artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: safari-reading-list-chrome
+          path: dist_chrome
+
+      - name: Upload Chrome artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: safari-reading-list-chrome
           path: dist_chrome
@@ -44,7 +119,7 @@ jobs:
           zip -r ../safari-reading-list-chrome.zip *
 
       - name: Upload Chrome extension zip
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: safari-reading-list-chrome-zip
           path: safari-reading-list-chrome.zip
@@ -74,14 +149,14 @@ jobs:
           cp host/com.wtf403.safari_reading_list.firefox.json host/package/
 
       - name: Upload host artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: safari-reading-list-host
           path: host/package
 
   create-homebrew-formula:
     name: Create Homebrew Formula
-    needs: [build-extension, build-host]
+    needs: [build-firefox-extension, build-chrome-extension, build-host]
     runs-on: macos-latest
     steps:
       - name: Check out code
@@ -160,13 +235,13 @@ jobs:
           tar -czf ../safari-reading-list-${{ env.VERSION }}.tar.gz *
 
       - name: Upload formula
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: homebrew-formula
           path: formula/safari-reading-list.rb
 
       - name: Upload release package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release-package
           path: safari-reading-list-${{ env.VERSION }}.tar.gz
